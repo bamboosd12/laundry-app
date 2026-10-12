@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import './App.css'
 
-const API = 'http://localhost:8081/api'
+const API = '/api'
 const USER_KEY = 'laundryUser'
 
 const clothingTypes = [
@@ -34,6 +34,10 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [user, setUser] = useState(readSavedUser)
   const [activeMenu, setActiveMenu] = useState('หน้าหลัก')
+  const [orders, setOrders] = useState([])
+  const [ordersLoading, setOrdersLoading] = useState(false)
+  const [ordersError, setOrdersError] = useState('')
+  const [updatingOrderId, setUpdatingOrderId] = useState(null)
 
   const [customers, setCustomers] = useState([])
   const [customersLoading, setCustomersLoading] = useState(false)
@@ -57,10 +61,60 @@ function App() {
   )
 
   useEffect(() => {
-    if (user && activeMenu === 'จัดการรายการรับผ้า') {
+    if (!user) return
+
+    if (activeMenu === 'จัดการรายการรับผ้า') {
       loadCustomers()
     }
+
+    if (activeMenu === 'สถานะงานซักรีด') {
+      loadOrders()
+    }
   }, [user, activeMenu])
+
+  async function loadOrders() {
+    setOrdersLoading(true)
+    setOrdersError('')
+
+    try {
+      const response = await fetch(`${API}/laundry-orders`)
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'โหลดรายการซักรีดไม่สำเร็จ')
+      }
+
+      setOrders(Array.isArray(data) ? data : [])
+    } catch (error) {
+      setOrdersError(error.message || 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้')
+    } finally {
+      setOrdersLoading(false)
+    }
+  }
+
+  async function updateOrderStatus(orderId, status) {
+    setUpdatingOrderId(orderId)
+    setOrdersError('')
+
+    try {
+      const response = await fetch(`${API}/laundry-orders/${orderId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      })
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'เปลี่ยนสถานะไม่สำเร็จ')
+      }
+
+      await loadOrders()
+    } catch (error) {
+      setOrdersError(error.message || 'เปลี่ยนสถานะไม่สำเร็จ')
+    } finally {
+      setUpdatingOrderId(null)
+    }
+  }
 
   async function loadCustomers() {
     setCustomersLoading(true)
@@ -656,6 +710,72 @@ function App() {
                 </div>
               </form>
             </section>
+          ) : activeMenu === 'สถานะงานซักรีด' ? (
+            <section className="dashboard-panel laundry-status-panel">
+              <div className="laundry-form-heading">
+                <div>
+                  <h2>รายการงานซักรีด</h2>
+                  <p>ตรวจสอบและอัปเดตสถานะงาน โดยบันทึกลงฐานข้อมูลจริง</p>
+                </div>
+                <button
+                  type="button"
+                  className="secondary-form-button"
+                  onClick={loadOrders}
+                  disabled={ordersLoading}
+                >
+                  {ordersLoading ? 'กำลังโหลด...' : 'รีเฟรช'}
+                </button>
+              </div>
+
+              {ordersError && <div className="laundry-message error">{ordersError}</div>}
+
+              {ordersLoading ? (
+                <p>กำลังโหลดรายการซักรีด...</p>
+              ) : orders.length === 0 ? (
+                <p>ยังไม่มีรายการรับผ้า</p>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '16px' }}>
+                    <thead>
+                      <tr>
+                        {['เลขที่รายการ', 'ลูกค้า', 'วันนัดรับ', 'ยอดรวม', 'สถานะงาน', 'เปลี่ยนสถานะ'].map((label) => (
+                          <th key={label} style={{ textAlign: 'left', padding: '12px 8px', borderBottom: '1px solid #eadde5', whiteSpace: 'nowrap' }}>{label}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {orders.map((order) => (
+                        <tr key={order.order_id}>
+                          <td style={{ padding: '12px 8px', borderBottom: '1px solid #f1e7ed' }}>#{order.order_id}</td>
+                          <td style={{ padding: '12px 8px', borderBottom: '1px solid #f1e7ed' }}>
+                            <strong>{order.customer_name}</strong>
+                            <div style={{ fontSize: '0.85em', opacity: 0.7 }}>{order.phone || 'ไม่มีเบอร์โทร'}</div>
+                          </td>
+                          <td style={{ padding: '12px 8px', borderBottom: '1px solid #f1e7ed', whiteSpace: 'nowrap' }}>{order.pickup_date}</td>
+                          <td style={{ padding: '12px 8px', borderBottom: '1px solid #f1e7ed', whiteSpace: 'nowrap' }}>฿{Number(order.total_amount).toFixed(2)}</td>
+                          <td style={{ padding: '12px 8px', borderBottom: '1px solid #f1e7ed', whiteSpace: 'nowrap' }}>
+                            {({ received: '🧺 รับผ้าแล้ว', processing: '🫧 กำลังดำเนินการ', completed: '✨ เสร็จแล้ว' })[order.status] || order.status}
+                          </td>
+                          <td style={{ padding: '12px 8px', borderBottom: '1px solid #f1e7ed', minWidth: '190px' }}>
+                            <select
+                              value={order.status}
+                              disabled={updatingOrderId === order.order_id}
+                              onChange={(event) => updateOrderStatus(order.order_id, event.target.value)}
+                              aria-label={`เปลี่ยนสถานะรายการ ${order.order_id}`}
+                            >
+                              <option value="received">รับผ้าแล้ว</option>
+                              <option value="processing">กำลังดำเนินการ</option>
+                              <option value="completed">เสร็จแล้ว</option>
+                            </select>
+                            {updatingOrderId === order.order_id && <small> กำลังบันทึก...</small>}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
           ) : (
             <section className="dashboard-panel menu-placeholder">
               <div className="placeholder-icon">🧺</div>
@@ -678,7 +798,7 @@ function App() {
     )
   }
 
-  return (
+    return (
     <main className="login-page">
       <div className="bubble bubble-one" />
       <div className="bubble bubble-two" />
@@ -728,6 +848,13 @@ function App() {
             {!loading && <span>→</span>}
           </button>
         </form>
+
+        <div className="demo-credentials">
+          <strong>Demo Account for Instructor</strong>
+          <p>Username: <code>Nar</code></p>
+          <p>Password: <code>1234</code></p>
+          <small>For demonstration purposes only</small>
+        </div>
 
         <div className="login-footer">
           <span>✦</span>

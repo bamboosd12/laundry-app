@@ -897,3 +897,35 @@ button span {
     width: 100%;
   }
 }
+.demo-credentials {
+  margin-top: 22px;
+  padding: 14px 16px;
+  border: 1px dashed #c8a77b;
+  border-radius: 14px;
+  background: #fff8ef;
+  color: #5b4636;
+  text-align: left;
+}
+
+.demo-credentials strong {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.demo-credentials p {
+  margin: 7px 0;
+  font-size: 13px;
+}
+
+.demo-credentials code {
+  color: #8b4c2b;
+  overflow-wrap: anywhere;
+}
+
+.demo-credentials small {
+  display: block;
+  margin-top: 10px;
+  color: #8a7868;
+  font-size: 11px;
+}

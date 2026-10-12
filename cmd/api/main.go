@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -72,6 +73,7 @@ func main() {
 
 		db, err := database.Connect(ctx)
 		if err != nil {
+			log.Printf("DB health check failed: %v", err)
 			writeJSON(w, http.StatusServiceUnavailable, HealthResponse{
 				Status:  "error",
 				Message: "Database connection failed",
@@ -231,6 +233,150 @@ func main() {
 		}
 
 		writeJSON(w, http.StatusCreated, customer)
+	})
+
+	mux.HandleFunc("GET /api/laundry-orders", func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+		defer cancel()
+
+		db, err := database.Connect(ctx)
+		if err != nil {
+			writeJSON(w, http.StatusServiceUnavailable, map[string]string{
+				"error": "Database connection failed",
+			})
+			return
+		}
+		defer db.Close()
+
+		rows, err := db.Query(ctx, `
+		SELECT o.order_id, o.customer_id, c.name, c.phone,
+		       o.pickup_date, o.total_amount, o.notes,
+		       o.status, o.payment_status, o.created_at
+		FROM laundry_orders o
+		JOIN customers c ON c.customer_id = o.customer_id
+		ORDER BY o.order_id DESC
+	`)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{
+				"error": "Could not fetch laundry orders",
+			})
+			return
+		}
+		defer rows.Close()
+
+		orders := make([]map[string]any, 0)
+
+		for rows.Next() {
+			var orderID, customerID int64
+			var customerName string
+			var phone, notes *string
+			var pickupDate time.Time
+			var totalAmount float64
+			var status, paymentStatus string
+			var createdAt time.Time
+
+			err := rows.Scan(
+				&orderID, &customerID, &customerName, &phone,
+				&pickupDate, &totalAmount, &notes,
+				&status, &paymentStatus, &createdAt,
+			)
+			if err != nil {
+				writeJSON(w, http.StatusInternalServerError, map[string]string{
+					"error": "Could not read laundry orders",
+				})
+				return
+			}
+
+			orders = append(orders, map[string]any{
+				"order_id":       orderID,
+				"customer_id":    customerID,
+				"customer_name":  customerName,
+				"phone":          phone,
+				"pickup_date":    pickupDate.Format("2006-01-02"),
+				"total_amount":   totalAmount,
+				"notes":          notes,
+				"status":         status,
+				"payment_status": paymentStatus,
+				"created_at":     createdAt,
+			})
+		}
+
+		if err := rows.Err(); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{
+				"error": "Could not read laundry orders",
+			})
+			return
+		}
+
+		writeJSON(w, http.StatusOK, orders)
+	})
+
+	mux.HandleFunc("PATCH /api/laundry-orders/{id}/status", func(w http.ResponseWriter, r *http.Request) {
+		r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+
+		var request struct {
+			Status string `json:"status"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{
+				"error": "Invalid JSON",
+			})
+			return
+		}
+
+		if request.Status != "received" &&
+			request.Status != "processing" &&
+			request.Status != "completed" {
+			writeJSON(w, http.StatusBadRequest, map[string]string{
+				"error": "Invalid laundry status",
+			})
+			return
+		}
+
+		orderID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+		if err != nil || orderID < 1 {
+			writeJSON(w, http.StatusBadRequest, map[string]string{
+				"error": "Invalid order ID",
+			})
+			return
+		}
+
+		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+		defer cancel()
+
+		db, err := database.Connect(ctx)
+		if err != nil {
+			writeJSON(w, http.StatusServiceUnavailable, map[string]string{
+				"error": "Database connection failed",
+			})
+			return
+		}
+		defer db.Close()
+
+		result, err := db.Exec(ctx,
+			`UPDATE laundry_orders SET status = $1 WHERE order_id = $2`,
+			request.Status, orderID,
+		)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{
+				"error": "Could not update laundry status",
+			})
+			return
+		}
+
+		if result.RowsAffected() == 0 {
+			writeJSON(w, http.StatusNotFound, map[string]string{
+				"error": "Laundry order not found",
+			})
+			return
+		}
+
+		writeJSON(w, http.StatusOK, map[string]any{
+			"order_id": orderID,
+			"status":   request.Status,
+			"message":  "Laundry status updated successfully",
+		})
 	})
 
 	mux.HandleFunc("POST /api/laundry-orders", func(w http.ResponseWriter, r *http.Request) {
