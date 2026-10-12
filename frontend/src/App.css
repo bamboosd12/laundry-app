@@ -1,0 +1,899 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap');
+
+:root {
+  font-family: 'Nunito', sans-serif;
+  color: #554638;
+  background: #f7f1e6;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.login-page {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 15% 20%, #fffaf0 0, transparent 28%),
+    radial-gradient(circle at 85% 85%, #e9dcc7 0, transparent 30%),
+    #f7f1e6;
+}
+
+.login-card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 410px;
+  padding: 38px 38px 27px;
+  border: 1px solid #eee3d2;
+  border-radius: 28px;
+  background: #fffdf8;
+  box-shadow: 0 24px 65px #78654b18;
+}
+
+.washer {
+  width: 88px;
+  height: 98px;
+  margin: 0 auto 22px;
+  padding: 10px;
+  border: 2px solid #b8a48a;
+  border-radius: 17px;
+  background: #f1e6d3;
+  box-shadow: inset 0 0 0 3px #fff9ed;
+}
+
+.washer-top {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  height: 13px;
+  padding: 0 3px;
+}
+
+.washer-top span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #a58c6e;
+}
+
+.washer-top span:last-child {
+  width: 26px;
+  height: 5px;
+  margin-left: auto;
+  border-radius: 5px;
+}
+
+.washer-door {
+  position: relative;
+  width: 54px;
+  height: 54px;
+  margin: 5px auto 0;
+  overflow: hidden;
+  border: 4px solid #b8a48a;
+  border-radius: 50%;
+  background: #e5eee7;
+}
+
+.washer-water {
+  position: absolute;
+  right: -5px;
+  bottom: -17px;
+  left: -5px;
+  height: 38px;
+  border-radius: 45% 45% 0 0;
+  background: #b7c9b6;
+  transform: rotate(-8deg);
+}
+
+.washer-water::before {
+  position: absolute;
+  top: -5px;
+  left: 7px;
+  width: 37px;
+  height: 10px;
+  border-top: 3px solid #8fae9a;
+  border-radius: 50%;
+  content: '';
+}
+
+.brand-label {
+  margin: 0;
+  color: #9b8262;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 3px;
+}
+
+h1 {
+  margin: 9px 0 5px;
+  text-align: center;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.7px;
+}
+
+.subtitle {
+  margin: 0 0 29px;
+  color: #a29380;
+  text-align: center;
+  font-size: 14px;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+}
+
+label {
+  margin-bottom: 7px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+input {
+  width: 100%;
+  margin-bottom: 19px;
+  padding: 13px 14px;
+  border: 1px solid #e8dece;
+  border-radius: 11px;
+  outline: none;
+  background: #faf6ee;
+  color: #554638;
+  font-size: 13px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+input::placeholder {
+  color: #b5a896;
+}
+
+input:focus {
+  border-color: #ad9678;
+  box-shadow: 0 0 0 3px #eae0cf;
+}
+
+button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 5px;
+  padding: 14px;
+  border: 0;
+  border-radius: 11px;
+  background: #82745b;
+  color: #fffdf8;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+}
+
+button:hover {
+  transform: translateY(-1px);
+  background: #6d604b;
+}
+
+button:focus-visible {
+  outline: 3px solid #c5b396;
+  outline-offset: 3px;
+}
+
+button span {
+  font-size: 18px;
+}
+
+.login-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin-top: 25px;
+  color: #aa9983;
+  font-size: 11px;
+}
+
+.login-footer span {
+  color: #b9a17c;
+}
+
+.bubble {
+  position: absolute;
+  border: 1px solid #ffffffa8;
+  border-radius: 50%;
+  background: #fffaf045;
+  pointer-events: none;
+}
+
+.bubble-one {
+  top: 13%;
+  left: 15%;
+  width: 85px;
+  height: 85px;
+}
+
+.bubble-two {
+  right: 16%;
+  bottom: 15%;
+  width: 120px;
+  height: 120px;
+}
+
+.bubble-three {
+  top: 22%;
+  right: 25%;
+  width: 24px;
+  height: 24px;
+}
+
+@media (max-width: 480px) {
+  .login-card {
+    padding: 32px 24px 24px;
+  }
+
+  h1 {
+    font-size: 27px;
+  }
+}
+
+/* Dashboard */
+.dashboard-page {
+  min-height: 100vh;
+  display: flex;
+  background: #f7f1e6;
+  color: #554638;
+}
+
+.dashboard-sidebar {
+  width: 250px;
+  min-height: 100vh;
+  padding: 28px 18px;
+  display: flex;
+  flex-direction: column;
+  background: #fffdf8;
+  border-right: 1px solid #eee3d2;
+}
+
+.dashboard-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 8px 30px;
+}
+
+.dashboard-logo {
+  display: grid;
+  place-items: center;
+  width: 45px;
+  height: 45px;
+  border-radius: 14px;
+  background: #f1e6d3;
+  font-size: 24px;
+}
+
+.dashboard-brand h2 {
+  margin: 0;
+  font-size: 14px;
+  letter-spacing: 1px;
+}
+
+.dashboard-brand p {
+  margin: 4px 0 0;
+  color: #a29380;
+  font-size: 11px;
+}
+
+.sidebar-label {
+  padding-left: 12px;
+  color: #ad9a82;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+
+.dashboard-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.dashboard-nav button,
+.logout-button {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  padding: 13px 12px;
+  border-radius: 10px;
+  background: transparent;
+  color: #786954;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.dashboard-nav button:hover,
+.dashboard-nav button.active {
+  transform: none;
+  background: #f1e6d3;
+  color: #66523c;
+}
+
+.dashboard-nav button span,
+.logout-button span {
+  width: 22px;
+  text-align: center;
+}
+
+.logout-button {
+  margin-top: auto;
+  color: #9b6c5e;
+}
+
+.dashboard-content {
+  flex: 1;
+  min-width: 0;
+  padding: 34px;
+}
+
+.dashboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 28px;
+}
+
+.dashboard-eyebrow {
+  margin: 0 0 7px;
+  color: #a58c6e;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+
+.dashboard-header h1 {
+  margin: 0;
+  text-align: left;
+  font-size: 28px;
+}
+
+.dashboard-header > div:first-child > p:last-child {
+  margin: 8px 0 0;
+  color: #a29380;
+  font-size: 13px;
+}
+
+.dashboard-profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid #eee3d2;
+  border-radius: 14px;
+  background: #fffdf8;
+}
+
+.profile-avatar {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: #f1e6d3;
+  font-size: 22px;
+}
+
+.dashboard-profile strong,
+.dashboard-profile span {
+  display: block;
+}
+
+.dashboard-profile strong {
+  font-size: 12px;
+}
+
+.dashboard-profile span {
+  margin-top: 4px;
+  color: #a29380;
+  font-size: 11px;
+}
+
+.welcome-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 26px 30px;
+  border: 1px solid #e9dcc7;
+  border-radius: 20px;
+  background: linear-gradient(110deg, #eee0c9, #fffaf0);
+}
+
+.welcome-banner p {
+  margin: 0 0 8px;
+  color: #9b8262;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+
+.welcome-banner h2 {
+  margin: 0;
+  font-size: 23px;
+}
+
+.welcome-banner span {
+  display: block;
+  margin-top: 8px;
+  color: #8f7b64;
+  font-size: 12px;
+}
+
+.banner-icon {
+  font-size: 58px;
+}
+
+.section-heading {
+  margin: 28px 0 15px;
+  font-size: 17px;
+}
+
+.dashboard-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 15px;
+}
+
+.stat-card,
+.dashboard-panel {
+  padding: 22px;
+  border: 1px solid #eee3d2;
+  border-radius: 17px;
+  background: #fffdf8;
+}
+
+.stat-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: #f5ecde;
+  font-size: 20px;
+}
+
+.stat-card p {
+  margin: 16px 0 8px;
+  color: #998772;
+  font-size: 12px;
+}
+
+.stat-card h3 {
+  margin: 0;
+  font-size: 25px;
+}
+
+.stat-card h3 span {
+  color: #a29380;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.dashboard-lower {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 18px;
+  margin-top: 20px;
+}
+
+.dashboard-panel h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.dashboard-panel > p {
+  margin: 8px 0 20px;
+  color: #a29380;
+  font-size: 12px;
+}
+
+.quick-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.quick-actions button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 15px 12px;
+  border: 1px solid #eee3d2;
+  background: #fffaf2;
+  color: #554638;
+  text-align: left;
+}
+
+.quick-actions button:hover {
+  transform: translateY(-2px);
+  background: #f7eddd;
+}
+
+.quick-actions button > span {
+  font-size: 22px;
+}
+
+.quick-actions strong {
+  font-size: 11px;
+}
+
+.quick-actions small {
+  color: #a29380;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.status-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 15px 0;
+  border-bottom: 1px solid #f0e8dc;
+  font-size: 12px;
+}
+
+.status-row:last-child {
+  border-bottom: 0;
+}
+
+.status-row strong {
+  margin-left: auto;
+  font-size: 14px;
+}
+
+.status-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.status-dot.received {
+  background: #c8a66b;
+}
+
+.status-dot.processing {
+  background: #8ca99a;
+}
+
+.status-dot.completed {
+  background: #a99bc4;
+}
+
+.menu-placeholder {
+  margin-top: 20px;
+  padding: 50px 24px;
+  text-align: center;
+}
+
+.placeholder-icon {
+  margin-bottom: 15px;
+  font-size: 48px;
+}
+
+.menu-placeholder h2 {
+  margin-bottom: 10px;
+}
+
+.menu-placeholder > p {
+  line-height: 1.8;
+}
+
+.back-home-button {
+  margin: 20px auto 0;
+  padding: 12px 22px;
+  background: #82745b;
+  color: #fffdf8;
+}
+
+@media (max-width: 1000px) {
+  .dashboard-content {
+    padding: 24px;
+  }
+
+  .dashboard-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-lower {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 650px) {
+  .dashboard-page {
+    flex-direction: column;
+  }
+
+  .dashboard-sidebar {
+    width: 100%;
+    min-height: auto;
+    padding: 18px;
+  }
+
+  .dashboard-nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .logout-button {
+    margin-top: 12px;
+  }
+
+  .dashboard-content {
+    padding: 18px;
+  }
+
+  .dashboard-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .welcome-banner {
+    padding: 20px;
+  }
+
+  .welcome-banner h2 {
+    font-size: 19px;
+  }
+
+  .banner-icon {
+    font-size: 38px;
+  }
+
+  .quick-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
+.laundry-form-panel {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 28px;
+}
+
+.laundry-form-heading,
+.laundry-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.laundry-form-heading {
+  margin-bottom: 28px;
+}
+
+.laundry-form-heading h2,
+.laundry-section-title h3 {
+  margin: 0;
+  color: #554638;
+}
+
+.laundry-form-heading p {
+  color: #8a7a6a;
+  margin: 8px 0 0;
+}
+
+.laundry-form-icon {
+  font-size: 38px;
+}
+
+.customer-form-section {
+  margin-bottom: 28px;
+}
+
+.laundry-section-title {
+  margin-bottom: 16px;
+}
+
+.laundry-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.laundry-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.laundry-field label {
+  color: #665442;
+  font-weight: 700;
+}
+
+.laundry-field input,
+.laundry-field select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  border: 1px solid #e5d8c8;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #fffdf9;
+  color: #554638;
+  font: inherit;
+}
+
+.laundry-field input:focus,
+.laundry-field select:focus {
+  outline: 2px solid #c8a783;
+  outline-offset: 1px;
+}
+
+.secondary-form-button {
+  border: 1px solid #cdb69b;
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: #fffaf2;
+  color: #72563e;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
+.laundry-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.laundry-item-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 2fr) minmax(90px, 1fr) minmax(110px, 1fr) auto auto;
+  align-items: end;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #eee2d3;
+  border-radius: 14px;
+  background: #fffdf9;
+}
+
+.laundry-item-subtotal {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-height: 44px;
+  justify-content: center;
+  color: #8a7a6a;
+  white-space: nowrap;
+}
+
+.laundry-item-subtotal strong {
+  color: #554638;
+}
+
+.remove-item-button {
+  border: none;
+  background: #f8e8e2;
+  color: #a64e3f;
+  border-radius: 8px;
+  padding: 10px;
+  cursor: pointer;
+}
+
+.laundry-order-details {
+  margin-top: 24px;
+}
+
+.laundry-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 28px;
+  padding: 20px;
+  border-radius: 14px;
+  background: #f8f0e5;
+  color: #554638;
+}
+
+.laundry-total strong {
+  font-size: 26px;
+  color: #896543;
+}
+
+.laundry-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.laundry-form-actions button {
+  border: none;
+  border-radius: 10px;
+  padding: 13px 22px;
+  background: #896543;
+  color: white;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
+.laundry-form-actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.laundry-message {
+  padding: 13px 16px;
+  border-radius: 10px;
+  margin-bottom: 18px;
+  overflow-wrap: anywhere;
+}
+
+.laundry-message.success {
+  background: #e8f4e8;
+  color: #286b3a;
+}
+
+.laundry-message.error {
+  background: #fbe9e6;
+  color: #9b3028;
+}
+
+@media (max-width: 760px) {
+  .laundry-form-panel {
+    padding: 18px;
+  }
+
+  .laundry-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .laundry-item-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .laundry-item-row .laundry-field:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .laundry-item-subtotal {
+    align-self: center;
+  }
+
+  .laundry-form-actions button {
+    width: 100%;
+  }
+}
