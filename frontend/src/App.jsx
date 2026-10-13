@@ -8,8 +8,22 @@ const USER_KEY = 'laundryUser'
 const clothingTypes = [
   { name: 'เสื้อแขนสั้น', price: 13 },
   { name: 'เสื้อแขนยาว', price: 15 },
-  { name: 'กางเกงขายาว', price: 15 },
+  { name: 'กระโปรงนักศึกษา', price: 16 },
+  { name: 'กระโปรงนักศึกษายาว', price: 25 },
   { name: 'กางเกงขาสั้น', price: 13 },
+  { name: 'กางเกงขายาว', price: 15 },
+  { name: 'เสื้อยืด / เสื้อกีฬา', price: 20 },
+  { name: 'เสื้อกาวน์ยาว', price: 20 },
+  { name: 'เสื้อคลุม / เสื้อหนาว', price: 25 },
+  { name: 'ชุดหมี', price: 35 },
+  { name: 'ชุดเดรสสั้น', price: 9 },
+  { name: 'ชุดเดรสยาว', price: 12 },
+  { name: 'ถุงเท้า (ซักตาก)', price: 7 },
+  { name: 'ผ้าห่ม 5–6 ฟุต', price: 110 },
+  { name: 'ผ้าห่มขนาดเล็ก', price: 90 },
+  { name: 'ผ้าปู 5–6 ฟุต', price: 45 },
+  { name: 'ปลอกหมอนซักรีด', price: 8 },
+  { name: 'ผ้าขนหนู', price: 15 },
 ]
 
 const emptyItem = () => ({
@@ -53,7 +67,9 @@ function App() {
   const [orderError, setOrderError] = useState('')
   const [salesReport, setSalesReport] = useState(null)
   const [salesReportError, setSalesReportError] = useState('')
-
+  const [dashboardReport, setDashboardReport] = useState(null)
+  const [dashboardError, setDashboardError] = useState('')  
+  
   const [showNewCustomer, setShowNewCustomer] = useState(false)
   const [newCustomerName, setNewCustomerName] = useState('')
   const [newCustomerPhone, setNewCustomerPhone] = useState('')
@@ -64,10 +80,25 @@ function App() {
       sum + Number(item.quantity || 0) * Number(item.unit_price || 0),
     0,
   )
+  const totalOrders = orders.length
 
-  useEffect(() => {
+    const receivedOrders = orders.filter(
+      (order) => order.status === 'received',
+    ).length
+
+    const processingOrders = orders.filter(
+      (order) => order.status === 'processing',
+    ).length
+
+    const completedOrders = orders.filter(
+      (order) => order.status === 'completed',
+    ).length
+
+    useEffect(() => {
     if (!user) return
-
+    if (activeMenu === 'หน้าหลัก') {
+      loadDashboard()
+    }
     if (activeMenu === 'จัดการรายการรับผ้า') {
       loadCustomers()
     }
@@ -86,6 +117,33 @@ function App() {
     setPaymentMessage('')
     setPaymentError('')
   }, [user, activeMenu])
+
+  async function loadDashboard() {
+  setDashboardError('')
+
+  try {
+    const [ordersResponse, reportResponse] = await Promise.all([
+      fetch(`${API}/laundry-orders`),
+      fetch(`${API}/sales-report`),
+    ])
+
+    const ordersData = await ordersResponse.json()
+    const reportData = await reportResponse.json()
+
+    if (!ordersResponse.ok) {
+      throw new Error(ordersData.error || 'โหลดรายการซักรีดไม่สำเร็จ')
+    }
+
+    if (!reportResponse.ok) {
+      throw new Error(reportData.error || 'โหลดรายงานยอดขายไม่สำเร็จ')
+    }
+
+    setOrders(Array.isArray(ordersData) ? ordersData : [])
+    setDashboardReport(reportData)
+  } catch (error) {
+    setDashboardError(error.message || 'โหลดข้อมูล Dashboard ไม่สำเร็จ')
+  }
+}
 
   async function loadOrders() {
     setOrdersLoading(true)
@@ -412,6 +470,8 @@ function App() {
       setPickupDate('')
       setNotes('')
       setItems([emptyItem()])
+
+      await loadOrders()
     } catch (error) {
       setOrderError(error.message || 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้')
     } finally {
@@ -493,27 +553,37 @@ function App() {
               </section>
 
               <h2 className="section-heading">ภาพรวมร้าน</h2>
+              {dashboardError && (
+                <p role="alert" className="error-message">
+                  {dashboardError}
+                </p>
+              )}
 
               <section className="dashboard-stats">
                 <article className="stat-card">
                   <div className="stat-icon">🧺</div>
                   <p>รายการรับผ้าทั้งหมด</p>
-                  <h3>0 <span>รายการ</span></h3>
+                  <h3>{totalOrders} <span>รายการ</span></h3>
                 </article>
+
                 <article className="stat-card">
                   <div className="stat-icon">🫧</div>
                   <p>กำลังดำเนินการ</p>
-                  <h3>0 <span>รายการ</span></h3>
+                  <h3>{processingOrders} <span>รายการ</span></h3>
                 </article>
+
                 <article className="stat-card">
                   <div className="stat-icon">✨</div>
-                  <p>รอลูกค้ามารับ</p>
-                  <h3>0 <span>รายการ</span></h3>
+                  <p>งานที่เสร็จแล้ว</p>
+                  <h3>{completedOrders} <span>รายการ</span></h3>
                 </article>
+
                 <article className="stat-card">
                   <div className="stat-icon">💰</div>
-                  <p>ยอดรับชำระวันนี้</p>
-                  <h3>฿0.00</h3>
+                  <p>ยอดรับชำระสะสม</p>
+                  <h3>
+                    ฿{Number(dashboardReport?.total_sales ?? 0).toFixed(2)}
+                  </h3>
                 </article>
               </section>
 
@@ -561,7 +631,9 @@ function App() {
                           }`}
                         />
                         <span>{status}</span>
-                        <strong>0</strong>
+                        <strong>
+                          {[receivedOrders, processingOrders, completedOrders][index]}
+                        </strong>
                       </div>
                     ),
                   )}
@@ -763,7 +835,11 @@ function App() {
                       id="pickup-date"
                       type="date"
                       value={pickupDate}
-                      min={new Date().toLocaleDateString('en-CA')}
+                      min={`${new Date().getFullYear()}-${String(
+                        new Date().getMonth() + 1,
+                      ).padStart(2, '0')}-${String(
+                        new Date().getDate(),
+                      ).padStart(2, '0')}`}
                       onChange={(event) => setPickupDate(event.target.value)}
                       required
                     />
