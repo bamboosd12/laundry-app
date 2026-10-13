@@ -38,7 +38,10 @@ function App() {
   const [ordersLoading, setOrdersLoading] = useState(false)
   const [ordersError, setOrdersError] = useState('')
   const [updatingOrderId, setUpdatingOrderId] = useState(null)
-
+  const [paymentMethod, setPaymentMethod] = useState({})
+  const [payingOrderId, setPayingOrderId] = useState(null)
+  const [paymentMessage, setPaymentMessage] = useState('')
+  const [paymentError, setPaymentError] = useState('')
   const [customers, setCustomers] = useState([])
   const [customersLoading, setCustomersLoading] = useState(false)
   const [customerId, setCustomerId] = useState('')
@@ -48,6 +51,8 @@ function App() {
   const [savingOrder, setSavingOrder] = useState(false)
   const [orderMessage, setOrderMessage] = useState('')
   const [orderError, setOrderError] = useState('')
+  const [salesReport, setSalesReport] = useState(null)
+  const [salesReportError, setSalesReportError] = useState('')
 
   const [showNewCustomer, setShowNewCustomer] = useState(false)
   const [newCustomerName, setNewCustomerName] = useState('')
@@ -67,9 +72,19 @@ function App() {
       loadCustomers()
     }
 
-    if (activeMenu === 'สถานะงานซักรีด') {
+    if (
+      activeMenu === 'สถานะงานซักรีด' ||
+      activeMenu === 'รับชำระเงิน'
+    ) {
       loadOrders()
     }
+
+    if (activeMenu === 'รายงานยอดขาย') {
+      loadSalesReport()
+    }
+
+    setPaymentMessage('')
+    setPaymentError('')
   }, [user, activeMenu])
 
   async function loadOrders() {
@@ -113,6 +128,76 @@ function App() {
       setOrdersError(error.message || 'เปลี่ยนสถานะไม่สำเร็จ')
     } finally {
       setUpdatingOrderId(null)
+    }
+  }
+  
+
+  async function handlePayment(orderId) {
+    const method = paymentMethod[orderId]
+
+    if (!method) {
+      setPaymentError('กรุณาเลือกวิธีชำระเงิน')
+      return
+    }
+
+    const order = orders.find((item) => item.order_id === orderId)
+
+    if (!order || order.payment_status !== 'unpaid') {
+      setPaymentError('รายการนี้ชำระเงินแล้ว หรือไม่พบรายการ')
+      return
+    }
+
+    setPayingOrderId(orderId)
+    setPaymentMessage('')
+    setPaymentError('')
+
+    try {
+      const response = await fetch(
+        `${API}/laundry-orders/${orderId}/payment`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ payment_method: method }),
+        },
+      )
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'บันทึกการชำระเงินไม่สำเร็จ')
+      }
+
+      setPaymentMessage(`รับชำระเงินรายการ #${orderId} สำเร็จ`)
+      await loadOrders()
+    } catch (error) {
+      setPaymentError(error.message || 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้')
+    } finally {
+      setPayingOrderId(null)
+    }
+  }
+
+
+  async function loadSalesReport() {
+    try {
+      setSalesReportError('')
+      const [reportResponse, ordersResponse] = await Promise.all([
+        fetch(`${API}/sales-report`),
+        fetch(`${API}/laundry-orders`),
+      ])
+
+      if (!reportResponse.ok || !ordersResponse.ok) {
+        throw new Error('ไม่สามารถโหลดรายงานยอดขายได้')
+      }
+
+      const report = await reportResponse.json()
+      const allOrders = await ordersResponse.json()
+
+      setSalesReport({
+        ...report,
+        orders: allOrders.filter((order) => order.payment_status === 'paid'),
+      })
+    } catch (error) {
+      setSalesReportError(error.message || 'เกิดข้อผิดพลาดในการโหลดรายงาน')
     }
   }
 
@@ -774,6 +859,239 @@ function App() {
                     </tbody>
                   </table>
                 </div>
+              )}
+            </section>
+          ) : activeMenu === 'รับชำระเงิน' ? (
+            <section className="dashboard-panel laundry-status-panel">
+              <div className="laundry-form-heading">
+                <div>
+                  <h2>รับชำระเงิน</h2>
+                  <p>เลือกวิธีชำระเงินและยืนยันการรับเงิน</p>
+                </div>
+                <button
+                  type="button"
+                  className="secondary-form-button"
+                  onClick={loadOrders}
+                  disabled={ordersLoading}
+                >
+                  {ordersLoading ? 'กำลังโหลด...' : 'รีเฟรช'}
+                </button>
+              </div>
+
+              {paymentMessage && (
+                <div className="laundry-message success">{paymentMessage}</div>
+              )}
+
+              {paymentError && (
+                <div className="laundry-message error">{paymentError}</div>
+              )}
+
+              {ordersError && (
+                <div className="laundry-message error">{ordersError}</div>
+              )}
+
+              {ordersLoading ? (
+                <p>กำลังโหลดรายการ...</p>
+              ) : orders.filter(
+                  (order) => order.payment_status === 'unpaid',
+                ).length === 0 ? (
+                <p>ไม่มีรายการค้างชำระเงิน 🎉</p>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table
+                    style={{
+                      width: '100%',
+                      borderCollapse: 'collapse',
+                      marginTop: '16px',
+                    }}
+                  >
+                    <thead>
+                      <tr>
+                        {[
+                          'เลขที่รายการ',
+                          'ลูกค้า',
+                          'วันนัดรับ',
+                          'ยอดรวม',
+                          'วิธีชำระเงิน',
+                          'ดำเนินการ',
+                        ].map((label) => (
+                          <th
+                            key={label}
+                            style={{
+                              textAlign: 'left',
+                              padding: '12px 8px',
+                              borderBottom: '1px solid #eadde5',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {label}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {orders
+                        .filter(
+                          (order) => order.payment_status === 'unpaid',
+                        )
+                        .map((order) => (
+                          <tr key={order.order_id}>
+                            <td
+                              style={{
+                                padding: '12px 8px',
+                                borderBottom: '1px solid #f1e7ed',
+                              }}
+                            >
+                              #{order.order_id}
+                            </td>
+                            <td
+                              style={{
+                                padding: '12px 8px',
+                                borderBottom: '1px solid #f1e7ed',
+                              }}
+                            >
+                              <strong>{order.customer_name}</strong>
+                              <div style={{ fontSize: '0.85em', opacity: 0.7 }}>
+                                {order.phone || 'ไม่มีเบอร์โทร'}
+                              </div>
+                            </td>
+                            <td
+                              style={{
+                                padding: '12px 8px',
+                                borderBottom: '1px solid #f1e7ed',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {order.pickup_date}
+                            </td>
+                            <td
+                              style={{
+                                padding: '12px 8px',
+                                borderBottom: '1px solid #f1e7ed',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              ฿{Number(order.total_amount).toFixed(2)}
+                            </td>
+                            <td
+                              style={{
+                                padding: '12px 8px',
+                                borderBottom: '1px solid #f1e7ed',
+                              }}
+                            >
+                              <select
+                                value={paymentMethod[order.order_id] || ''}
+                                onChange={(event) =>
+                                  setPaymentMethod((current) => ({
+                                    ...current,
+                                    [order.order_id]: event.target.value,
+                                  }))
+                                }
+                                aria-label={`วิธีชำระเงินรายการ ${order.order_id}`}
+                              >
+                                <option value="">เลือกวิธีชำระเงิน</option>
+                                <option value="cash">เงินสด</option>
+                                <option value="transfer">โอนเงิน</option>
+                              </select>
+                            </td>
+                            <td
+                              style={{
+                                padding: '12px 8px',
+                                borderBottom: '1px solid #f1e7ed',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              <button
+                                type="button"
+                                disabled={payingOrderId === order.order_id}
+                                onClick={() => handlePayment(order.order_id)}
+                              >
+                                {payingOrderId === order.order_id
+                                  ? 'กำลังบันทึก...'
+                                  : 'ยืนยันชำระ'}
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          ) : activeMenu === 'รายงานยอดขาย' ? (
+            <section className="dashboard-panel laundry-status-panel">
+              <div className="laundry-form-heading">
+                <div>
+                  <h2>รายงานยอดขาย</h2>
+                  <p>สรุปยอดจากรายการที่ชำระเงินแล้ว</p>
+                </div>
+                <button
+                  type="button"
+                  className="secondary-form-button"
+                  onClick={loadSalesReport}
+                >
+                  รีเฟรชรายงาน
+                </button>
+              </div>
+
+              {salesReportError && (
+                <div className="laundry-message error" role="alert">
+                  {salesReportError}
+                </div>
+              )}
+
+              {!salesReport ? (
+                <p>กำลังโหลดรายงานยอดขาย...</p>
+              ) : (
+                <>
+                  <div className="dashboard-stats" style={{ marginTop: 20 }}>
+                    <article className="stat-card">
+                      <div className="stat-icon">💰</div>
+                      <p>ยอดขายรวม</p>
+                      <h3>
+                        ฿{Number(salesReport.total_sales || 0).toLocaleString(
+                          'th-TH',
+                          { minimumFractionDigits: 2, maximumFractionDigits: 2 },
+                        )}
+                      </h3>
+                    </article>
+                    <article className="stat-card">
+                      <div className="stat-icon">🧾</div>
+                      <p>จำนวนออเดอร์ที่ชำระแล้ว</p>
+                      <h3>{salesReport.paid_orders || 0} <span>รายการ</span></h3>
+                    </article>
+                  </div>
+
+                  <h3 className="section-heading">รายละเอียดรายการขาย</h3>
+                  {salesReport.orders.length === 0 ? (
+                    <p>ยังไม่มีรายการขาย</p>
+                  ) : (
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr>
+                            {['เลขที่รายการ', 'ลูกค้า', 'วันนัดรับ', 'ยอดรวม', 'สถานะชำระเงิน'].map((label) => (
+                              <th key={label} style={{ textAlign: 'left', padding: '12px 8px', borderBottom: '1px solid #eadde5', whiteSpace: 'nowrap' }}>
+                                {label}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {salesReport.orders.map((order) => (
+                            <tr key={order.order_id}>
+                              <td style={{ padding: '12px 8px', borderBottom: '1px solid #f1e7ed' }}>#{order.order_id}</td>
+                              <td style={{ padding: '12px 8px', borderBottom: '1px solid #f1e7ed' }}>{order.customer_name}</td>
+                              <td style={{ padding: '12px 8px', borderBottom: '1px solid #f1e7ed', whiteSpace: 'nowrap' }}>{order.pickup_date}</td>
+                              <td style={{ padding: '12px 8px', borderBottom: '1px solid #f1e7ed', whiteSpace: 'nowrap' }}>฿{Number(order.total_amount || 0).toFixed(2)}</td>
+                              <td style={{ padding: '12px 8px', borderBottom: '1px solid #f1e7ed' }}>ชำระแล้ว</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </>
               )}
             </section>
           ) : (

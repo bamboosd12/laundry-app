@@ -378,6 +378,78 @@ func main() {
 			"message":  "Laundry status updated successfully",
 		})
 	})
+	
+	mux.HandleFunc("PATCH /api/laundry-orders/{id}/payment", func(w http.ResponseWriter, r *http.Request) {
+		r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+
+		var request struct {
+			PaymentMethod string `json:"payment_method"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{
+				"error": "Invalid JSON",
+			})
+			return
+		}
+
+		if request.PaymentMethod != "cash" && request.PaymentMethod != "transfer" {
+			writeJSON(w, http.StatusBadRequest, map[string]string{
+				"error": "Invalid payment method",
+			})
+			return
+		}
+
+		orderID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+		if err != nil || orderID < 1 {
+			writeJSON(w, http.StatusBadRequest, map[string]string{
+				"error": "Invalid order ID",
+			})
+			return
+		}
+
+		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+		defer cancel()
+
+		db, err := database.Connect(ctx)
+		if err != nil {
+			writeJSON(w, http.StatusServiceUnavailable, map[string]string{
+				"error": "Database connection failed",
+			})
+			return
+		}
+		defer db.Close()
+
+		result, err := db.Exec(ctx, `
+			UPDATE laundry_orders
+			SET payment_status = 'paid',
+				payment_method = $1,
+				paid_at = CURRENT_TIMESTAMP
+			WHERE order_id = $2
+			AND payment_status = 'unpaid'
+		`, request.PaymentMethod, orderID)
+
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{
+				"error": "Could not update payment",
+			})
+			return
+		}
+
+		if result.RowsAffected() == 0 {
+			writeJSON(w, http.StatusConflict, map[string]string{
+				"error": "Order not found or already paid",
+			})
+			return
+		}
+
+		writeJSON(w, http.StatusOK, map[string]any{
+			"order_id":      orderID,
+			"payment_status": "paid",
+			"payment_method": request.PaymentMethod,
+			"message":       "Payment recorded successfully",
+		})
+	})
 
 	mux.HandleFunc("POST /api/laundry-orders", func(w http.ResponseWriter, r *http.Request) {
 		r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
@@ -482,6 +554,45 @@ func main() {
 			PaymentStatus: "unpaid",
 		})
 	})
+
+
+mux.HandleFunc("GET /api/sales-report", func(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+
+	db, err := database.Connect(ctx)
+	if err != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{
+			"error": "Database connection failed",
+		})
+		return
+	}
+	defer db.Close()
+
+	var totalSales float64
+	var paidOrders int
+
+	err = db.QueryRow(ctx, `
+		SELECT
+			COALESCE(SUM(total_amount), 0),
+			COUNT(*)
+		FROM laundry_orders
+		WHERE payment_status = 'paid'
+	`).Scan(&totalSales, &paidOrders)
+
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{
+			"error": "Could not fetch sales report",
+		})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"total_sales": totalSales,
+		"paid_orders": paidOrders,
+	})
+})
+
 
 	port := os.Getenv("PORT")
 	if port == "" {
