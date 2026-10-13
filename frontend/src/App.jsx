@@ -5,25 +5,43 @@ import './App.css'
 const API = '/api'
 const USER_KEY = 'laundryUser'
 
+
 const clothingTypes = [
-  { name: 'เสื้อแขนสั้น', price: 13 },
-  { name: 'เสื้อแขนยาว', price: 15 },
-  { name: 'กระโปรงนักศึกษา', price: 16 },
-  { name: 'กระโปรงนักศึกษายาว', price: 25 },
-  { name: 'กางเกงขาสั้น', price: 13 },
-  { name: 'กางเกงขายาว', price: 15 },
-  { name: 'เสื้อยืด / เสื้อกีฬา', price: 20 },
-  { name: 'เสื้อกาวน์ยาว', price: 20 },
-  { name: 'เสื้อคลุม / เสื้อหนาว', price: 25 },
-  { name: 'ชุดหมี', price: 35 },
-  { name: 'ชุดเดรสสั้น', price: 9 },
-  { name: 'ชุดเดรสยาว', price: 12 },
-  { name: 'ถุงเท้า (ซักตาก)', price: 7 },
-  { name: 'ผ้าห่ม 5–6 ฟุต', price: 110 },
-  { name: 'ผ้าห่มขนาดเล็ก', price: 90 },
-  { name: 'ผ้าปู 5–6 ฟุต', price: 45 },
-  { name: 'ปลอกหมอนซักรีด', price: 8 },
-  { name: 'ผ้าขนหนู', price: 15 },
+  // ซักรีดรายชิ้น
+  { name: 'เสื้อแขนสั้น', price: 13, category: 'รายชิ้น' },
+  { name: 'เสื้อแขนยาว', price: 15, category: 'รายชิ้น' },
+  { name: 'กระโปรงนักศึกษา (สั้น)', price: 16, category: 'รายชิ้น' },
+  { name: 'กระโปรงนักศึกษา (ยาว)', price: 25, category: 'รายชิ้น' },
+  { name: 'กางเกงขาสั้น', price: 13, category: 'รายชิ้น' },
+  { name: 'กางเกงขายาว', price: 15, category: 'รายชิ้น' },
+
+  // รายการที่มีราคาหลายช่วง แยกเป็นตัวเลือกย่อย
+  { name: 'เสื้อยืด / เสื้อกีฬา (20 บาท)', price: 20, category: 'รายชิ้น' },
+  { name: 'เสื้อยืด / เสื้อกีฬา (25 บาท)', price: 25, category: 'รายชิ้น' },
+  { name: 'เสื้อกาวน์ยาว (20 บาท)', price: 20, category: 'รายชิ้น' },
+  { name: 'เสื้อกาวน์ยาว (25 บาท)', price: 25, category: 'รายชิ้น' },
+  { name: 'เสื้อคลุม / เสื้อหนาว (25 บาท)', price: 25, category: 'รายชิ้น' },
+  { name: 'เสื้อคลุม / เสื้อหนาว (30 บาท)', price: 30, category: 'รายชิ้น' },
+  { name: 'ชุดหมี', price: 35, category: 'รายชิ้น' },
+  { name: 'ชุดเดรสสั้น', price: 9, category: 'รายชิ้น' },
+  { name: 'ชุดเดรสยาว', price: 12, category: 'รายชิ้น' },
+  { name: 'ถุงเท้า (ซักตาก)', price: 7, category: 'รายชิ้น' },
+
+  // งานผ้าอื่น ๆ
+  { name: 'ผ้าห่ม 5–6 ฟุต (110 บาท)', price: 110, category: 'งานผ้าอื่น' },
+  { name: 'ผ้าห่ม 5–6 ฟุต (140 บาท)', price: 140, category: 'งานผ้าอื่น' },
+  { name: 'ผ้าห่มขนาดตามป้าย (90 บาท)', price: 90, category: 'งานผ้าอื่น' },
+  { name: 'ผ้าปู 5–6 ฟุต', price: 45, category: 'งานผ้าอื่น' },
+  { name: 'ปลอกหมอนซักรีด (8 บาท)', price: 8, category: 'งานผ้าอื่น' },
+  { name: 'ปลอกหมอนซักรีด (10 บาท)', price: 10, category: 'งานผ้าอื่น' },
+  { name: 'ผ้าขนหนู (15 บาท)', price: 15, category: 'งานผ้าอื่น' },
+  { name: 'ผ้าขนหนู (20 บาท)', price: 20, category: 'งานผ้าอื่น' },
+
+  // แพ็กเกจ ต้องคิดเป็นราคาต่อแพ็ก ไม่ใช่ราคาต่อชิ้น
+  { name: 'แพ็กเกจซักรีด 25 ชิ้น', price: 320, category: 'แพ็กเกจ' },
+  { name: 'แพ็กเกจซักรีด 35 ชิ้น', price: 410, category: 'แพ็กเกจ' },
+  { name: 'แพ็กเกจซักรีด 60 ชิ้น', price: 600, category: 'แพ็กเกจ' },
+  { name: 'แพ็กเกจซักตาก 50 ชิ้น', price: 280, category: 'แพ็กเกจ' },
 ]
 
 const emptyItem = () => ({
@@ -31,6 +49,7 @@ const emptyItem = () => ({
   quantity: 1,
   unit_price: 13,
 })
+
 
 function readSavedUser() {
   try {
@@ -757,17 +776,27 @@ function App() {
                             updateItem(index, 'item_type', event.target.value)
                           }
                         >
-                          {clothingTypes.map((type) => (
-                            <option key={type.name} value={type.name}>
-                              {type.name}
-                            </option>
-                          ))}
+                          
+{['รายชิ้น', 'งานผ้าอื่น', 'แพ็กเกจ'].map((category) => (
+  <optgroup key={category} label={category}>
+    {clothingTypes
+      .filter((type) => type.category === category)
+      .map((type) => (
+        <option key={type.name} value={type.name}>
+          {type.name}
+        </option>
+      ))}
+  </optgroup>
+))}
+
                         </select>
                       </div>
 
                       <div className="laundry-field">
-                        <label htmlFor={`item-quantity-${index}`}>
-                          จำนวน (ชิ้น)
+                        <label htmlFor={`item-price-${index}`}>
+                          {clothingTypes.find((type) => type.name === item.item_type)?.category === 'แพ็กเกจ'
+                            ? 'ราคาต่อแพ็ก (บาท)'
+                            : 'ราคาต่อชิ้น/รายการ (บาท)'}
                         </label>
                         <input
                           id={`item-quantity-${index}`}
