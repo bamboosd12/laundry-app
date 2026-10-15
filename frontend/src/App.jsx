@@ -76,6 +76,13 @@ function App() {
   const [paymentMessage, setPaymentMessage] = useState('')
   const [paymentError, setPaymentError] = useState('')
   const [customers, setCustomers] = useState([])
+  const [historyCustomerId, setHistoryCustomerId] = useState('')
+  const [historyMonth, setHistoryMonth] = useState(
+    new Date().toISOString().slice(0, 7),
+  )
+  const [customerHistory, setCustomerHistory] = useState(null)
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyError, setHistoryError] = useState('')
   const [customersLoading, setCustomersLoading] = useState(false)
   const [customerId, setCustomerId] = useState('')
   const [pickupDate, setPickupDate] = useState('')
@@ -131,6 +138,9 @@ function App() {
 
     if (activeMenu === 'รายงานยอดขาย') {
       loadSalesReport()
+    }
+    if (activeMenu === 'ประวัติลูกค้า') {
+      loadCustomers()
     }
 
     setPaymentMessage('')
@@ -296,6 +306,36 @@ function App() {
       setCustomersLoading(false)
     }
   }
+
+
+  async function loadCustomerHistory() {
+    if (!historyCustomerId || !historyMonth) {
+      setHistoryError('กรุณาเลือกลูกค้าและเดือน')
+      return
+    }
+
+    setHistoryLoading(true)
+    setHistoryError('')
+    setCustomerHistory(null)
+
+    try {
+      const response = await fetch(
+        `${API}/customers/${historyCustomerId}/history?month=${historyMonth}`,
+      )
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'โหลดประวัติลูกค้าไม่สำเร็จ')
+      }
+
+      setCustomerHistory(data)
+    } catch (error) {
+      setHistoryError(error.message || 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้')
+    } finally {
+      setHistoryLoading(false)
+    }
+  }
+
 
   async function handleLogin(event) {
     event.preventDefault()
@@ -505,6 +545,7 @@ function App() {
       'สถานะงานซักรีด',
       'รับชำระเงิน',
       'รายงานยอดขาย',
+      'ประวัติลูกค้า',
     ]
 
     return (
@@ -528,7 +569,7 @@ function App() {
                 className={activeMenu === menu ? 'active' : ''}
                 onClick={() => setActiveMenu(menu)}
               >
-                <span>{['⌂', '🧺', '📋', '฿', '▤'][index]}</span>
+                <span>{['⌂', '🧺', '📋', '฿', '▤', '🗓️'][index]}</span>
                 {menu}
               </button>
             ))}
@@ -1195,6 +1236,172 @@ function App() {
                         </tbody>
                       </table>
                     </div>
+                  )}
+                </>
+              )}
+            </section>
+          ) : activeMenu === 'ประวัติลูกค้า' ? (
+            <section className="dashboard-panel laundry-status-panel">
+              <div className="laundry-form-heading">
+                <div>
+                  <h2>ประวัติลูกค้า</h2>
+                  <p>เลือกชื่อลูกค้าและเดือนเพื่อดูรายละเอียดออเดอร์</p>
+                </div>
+              </div>
+
+              <div className="laundry-form-grid">
+                <div className="laundry-field">
+                  <label htmlFor="history-customer">เลือกลูกค้า</label>
+                  <select
+                    id="history-customer"
+                    value={historyCustomerId}
+                    onChange={(event) => {
+                      setHistoryCustomerId(event.target.value)
+                      setCustomerHistory(null)
+                      setHistoryError('')
+                    }}
+                  >
+                    <option value="">-- เลือกลูกค้า --</option>
+                    {customers.map((customer) => (
+                      <option
+                        key={customer.id ?? customer.customer_id}
+                        value={customer.id ?? customer.customer_id}
+                      >
+                        {customer.name ?? customer.customer_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="laundry-field">
+                  <label htmlFor="history-month">เลือกเดือน</label>
+                  <input
+                    id="history-month"
+                    type="month"
+                    value={historyMonth}
+                    onChange={(event) => {
+                      setHistoryMonth(event.target.value)
+                      setCustomerHistory(null)
+                      setHistoryError('')
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="laundry-form-actions">
+                <button
+                  type="button"
+                  onClick={loadCustomerHistory}
+                  disabled={historyLoading || customersLoading}
+                >
+                  {historyLoading ? 'กำลังโหลด...' : 'ดูประวัติ'}
+                </button>
+              </div>
+
+              {customersLoading && <p>กำลังโหลดรายชื่อลูกค้า...</p>}
+
+              {historyError && (
+                <div className="laundry-message error" role="alert">
+                  {historyError}
+                </div>
+              )}
+
+              {customerHistory && (
+                <>
+                  <div className="dashboard-stats" style={{ marginTop: 20 }}>
+                    <article className="stat-card">
+                      <div className="stat-icon">🧾</div>
+                      <p>จำนวนออเดอร์</p>
+                      <h3>
+                        {(customerHistory.orders || []).length} <span>รายการ</span>
+                      </h3>
+                    </article>
+
+                    <article className="stat-card">
+                      <div className="stat-icon">💰</div>
+                      <p>ยอดรวมออเดอร์</p>
+                      <h3>
+                        ฿{(customerHistory.orders || [])
+                          .reduce(
+                            (sum, order) =>
+                              sum + Number(order.total_amount || 0),
+                            0,
+                          )
+                          .toLocaleString('th-TH', {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
+                      </h3>
+                    </article>
+                  </div>
+
+                  <p style={{ marginTop: 12, opacity: 0.75 }}>
+                    ยอดรวมนี้รวมออเดอร์ที่ยังไม่ชำระเงินด้วย
+                  </p>
+
+                  {(customerHistory.orders || []).length === 0 ? (
+                    <p>ไม่พบรายการของลูกค้ารายนี้ในเดือนที่เลือก</p>
+                  ) : (
+                    customerHistory.orders.map((order) => (
+                      <article
+                        key={order.order_id}
+                        className="stat-card"
+                        style={{ marginTop: 16, padding: 20 }}
+                      >
+                        <div className="laundry-form-heading">
+                          <div>
+                            <h3>รายการ #{order.order_id}</h3>
+                            <p>
+                              วันที่รับผ้า:{' '}
+                              {order.created_at
+                                ? new Date(order.created_at).toLocaleDateString('th-TH')
+                                : '-'}
+                            </p>
+                            <p>วันนัดรับ: {order.pickup_date || '-'}</p>
+                          </div>
+                          <strong>
+                            ฿{Number(order.total_amount || 0).toLocaleString('th-TH', {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}
+                          </strong>
+                        </div>
+
+                        <p>
+                          สถานะงาน:{' '}
+                          {({
+                            received: 'รับผ้าแล้ว',
+                            processing: 'กำลังดำเนินการ',
+                            completed: 'เสร็จแล้ว',
+                          })[order.status] || order.status || '-'}
+                        </p>
+
+                        <p>
+                          สถานะชำระเงิน:{' '}
+                          {order.payment_status === 'paid'
+                            ? 'ชำระแล้ว'
+                            : 'ยังไม่ชำระ'}
+                        </p>
+
+                        <h4>รายละเอียดผ้า</h4>
+                        {(order.items || []).length === 0 ? (
+                          <p>ไม่มีรายละเอียดรายการผ้า</p>
+                        ) : (
+                          <ul>
+                            {order.items.map((item, index) => (
+                              <li key={`${order.order_id}-${index}`}>
+                                {item.item_type} × {item.quantity} ชิ้น — ฿
+                                {Number(item.unit_price || 0).toLocaleString('th-TH', {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}{' '}
+                                / หน่วย
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </article>
+                    ))
                   )}
                 </>
               )}

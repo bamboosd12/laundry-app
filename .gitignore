@@ -24,3 +24,6 @@ yarn-debug.log*
 # Editors
 .vscode/
 .idea/
+
+# Local database backups
+backups/

@@ -60,6 +60,64 @@ type LaundryOrderResponse struct {
 func main() {
 	mux := http.NewServeMux()
 
+	mux.HandleFunc("GET /api/membership-plans", func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+		defer cancel()
+
+		db, err := database.Connect(ctx)
+		if err != nil {
+			log.Printf("Membership plans database connection error: %v", err)
+			writeJSON(w, http.StatusServiceUnavailable,
+				map[string]string{"error": "Database connection failed"})
+			return
+		}
+		defer db.Close()
+
+		rows, err := db.Query(ctx, `
+                        SELECT plan_id, name, piece_limit, price
+                        FROM membership_plans
+                        WHERE active = TRUE
+                        ORDER BY piece_limit
+                `)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{
+				"error": "Could not read membership plans",
+			})
+			return
+		}
+		defer rows.Close()
+
+		plans := make([]map[string]any, 0)
+		for rows.Next() {
+			var id int64
+			var name string
+			var pieceLimit int
+			var price float64
+
+			if err := rows.Scan(&id, &name, &pieceLimit, &price); err != nil {
+				writeJSON(w, http.StatusInternalServerError, map[string]string{
+					"error": "Could not read membership plan",
+				})
+				return
+			}
+
+			plans = append(plans, map[string]any{
+				"plan_id":     id,
+				"name":        name,
+				"piece_limit": pieceLimit,
+				"price":       price,
+			})
+		}
+
+		if err := rows.Err(); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{
+				"error": "Could not read membership plans",
+			})
+			return
+		}
+
+		writeJSON(w, http.StatusOK, plans)
+	})
 	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, HealthResponse{
 			Status:  "ok",
@@ -378,7 +436,7 @@ func main() {
 			"message":  "Laundry status updated successfully",
 		})
 	})
-	
+
 	mux.HandleFunc("PATCH /api/laundry-orders/{id}/payment", func(w http.ResponseWriter, r *http.Request) {
 		r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 
@@ -444,10 +502,10 @@ func main() {
 		}
 
 		writeJSON(w, http.StatusOK, map[string]any{
-			"order_id":      orderID,
+			"order_id":       orderID,
 			"payment_status": "paid",
 			"payment_method": request.PaymentMethod,
-			"message":       "Payment recorded successfully",
+			"message":        "Payment recorded successfully",
 		})
 	})
 
@@ -555,24 +613,23 @@ func main() {
 		})
 	})
 
+	mux.HandleFunc("GET /api/sales-report", func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+		defer cancel()
 
-mux.HandleFunc("GET /api/sales-report", func(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
+		db, err := database.Connect(ctx)
+		if err != nil {
+			writeJSON(w, http.StatusServiceUnavailable, map[string]string{
+				"error": "Database connection failed",
+			})
+			return
+		}
+		defer db.Close()
 
-	db, err := database.Connect(ctx)
-	if err != nil {
-		writeJSON(w, http.StatusServiceUnavailable, map[string]string{
-			"error": "Database connection failed",
-		})
-		return
-	}
-	defer db.Close()
+		var totalSales float64
+		var paidOrders int
 
-	var totalSales float64
-	var paidOrders int
-
-	err = db.QueryRow(ctx, `
+		err = db.QueryRow(ctx, `
 		SELECT
 			COALESCE(SUM(total_amount), 0),
 			COUNT(*)
@@ -580,19 +637,291 @@ mux.HandleFunc("GET /api/sales-report", func(w http.ResponseWriter, r *http.Requ
 		WHERE payment_status = 'paid'
 	`).Scan(&totalSales, &paidOrders)
 
-	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{
-			"error": "Could not fetch sales report",
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{
+				"error": "Could not fetch sales report",
+			})
+			return
+		}
+
+		writeJSON(w, http.StatusOK, map[string]any{
+			"total_sales": totalSales,
+			"paid_orders": paidOrders,
 		})
-		return
-	}
-
-	writeJSON(w, http.StatusOK, map[string]any{
-		"total_sales": totalSales,
-		"paid_orders": paidOrders,
 	})
-})
+	mux.HandleFunc("POST /api/memberships", func(w http.ResponseWriter, r *http.Request) {
+		r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 
+		var request struct {
+			CustomerID int64 `json:"customer_id"`
+			PlanID     int64 `json:"plan_id"`
+		}
+
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{
+				"error": "Invalid JSON",
+			})
+			return
+		}
+
+		if request.CustomerID < 1 || request.PlanID < 1 {
+			writeJSON(w, http.StatusBadRequest, map[string]string{
+				"error": "Customer ID and plan ID are required",
+			})
+			return
+		}
+
+		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+		defer cancel()
+
+		db, err := database.Connect(ctx)
+		if err != nil {
+			writeJSON(w, http.StatusServiceUnavailable, map[string]string{
+				"error": "Database connection failed",
+			})
+			return
+		}
+		defer db.Close()
+
+		tx, err := db.Begin(ctx)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{
+				"error": "Could not start transaction",
+			})
+			return
+		}
+		defer tx.Rollback(ctx)
+
+		var customerExists bool
+		err = tx.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1 FROM customers WHERE customer_id = $1
+		)
+	`, request.CustomerID).Scan(&customerExists)
+
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{
+				"error": "Could not verify customer",
+			})
+			return
+		}
+
+		if !customerExists {
+			writeJSON(w, http.StatusNotFound, map[string]string{
+				"error": "Customer not found",
+			})
+			return
+		}
+
+		var pieceLimit int
+		var price float64
+		var planName string
+
+		err = tx.QueryRow(ctx, `
+		SELECT name, piece_limit, price
+		FROM membership_plans
+		WHERE plan_id = $1 AND active = TRUE
+	`, request.PlanID).Scan(&planName, &pieceLimit, &price)
+
+		if err != nil {
+			writeJSON(w, http.StatusNotFound, map[string]string{
+				"error": "Active membership plan not found",
+			})
+			return
+		}
+
+		var membershipID int64
+		var startDate time.Time
+		var expiryDate time.Time
+
+		err = tx.QueryRow(ctx, `
+		INSERT INTO memberships (
+			customer_id,
+			plan_id,
+			start_date,
+			expiry_date,
+			initial_pieces,
+			remaining_pieces,
+			status
+		)
+		VALUES (
+			$1,
+			$2,
+			CURRENT_DATE,
+			(CURRENT_DATE + INTERVAL '1 month')::date,
+			$3,
+			$3,
+			'active'
+		)
+		RETURNING membership_id, start_date, expiry_date
+	`, request.CustomerID, request.PlanID, pieceLimit).Scan(
+			&membershipID,
+			&startDate,
+			&expiryDate,
+		)
+
+		if err != nil {
+			log.Printf("Create membership failed: %v", err)
+			writeJSON(w, http.StatusInternalServerError, map[string]string{
+				"error": "Could not create membership",
+			})
+			return
+		}
+
+		_, err = tx.Exec(ctx, `
+		INSERT INTO membership_transactions (
+			membership_id,
+			transaction_type,
+			pieces,
+			amount,
+			notes
+		)
+		VALUES ($1, 'purchase', $2, $3, $4)
+	`, membershipID, pieceLimit, price, "ซื้อแพ็กเกจ "+planName)
+
+		if err != nil {
+			log.Printf("Record membership purchase failed: %v", err)
+			writeJSON(w, http.StatusInternalServerError, map[string]string{
+				"error": "Could not record membership purchase",
+			})
+			return
+		}
+
+		if err := tx.Commit(ctx); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{
+				"error": "Could not save membership purchase",
+			})
+			return
+		}
+
+		writeJSON(w, http.StatusCreated, map[string]any{
+			"membership_id":    membershipID,
+			"customer_id":      request.CustomerID,
+			"plan_id":          request.PlanID,
+			"plan_name":        planName,
+			"initial_pieces":   pieceLimit,
+			"remaining_pieces": pieceLimit,
+			"price":            price,
+			"start_date":       startDate.Format("2006-01-02"),
+			"expiry_date":      expiryDate.Format("2006-01-02"),
+			"status":           "active",
+		})
+	})
+
+	mux.HandleFunc("GET /api/customers/{id}/history", func(w http.ResponseWriter, r *http.Request) {
+		customerID, err := strconv.Atoi(r.PathValue("id"))
+		if err != nil || customerID < 1 {
+			writeJSON(w, http.StatusBadRequest, map[string]string{
+				"error": "Invalid customer ID",
+			})
+			return
+		}
+
+		month := r.URL.Query().Get("month")
+		if month == "" {
+			month = time.Now().Format("2006-01")
+		}
+
+		monthDate, err := time.Parse("2006-01", month)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{
+				"error": "Month must use YYYY-MM format",
+			})
+			return
+		}
+
+		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+		defer cancel()
+
+		db, err := database.Connect(ctx)
+		if err != nil {
+			writeJSON(w, http.StatusServiceUnavailable, map[string]string{
+				"error": "Database connection failed",
+			})
+			return
+		}
+		defer db.Close()
+
+		rows, err := db.Query(ctx, `
+        SELECT
+            o.order_id,
+            o.created_at,
+            o.pickup_date,
+            o.status,
+            o.payment_status,
+            o.total_amount,
+            COALESCE(
+                json_agg(
+                    json_build_object(
+                        'item_type', i.item_type,
+                        'quantity', i.quantity,
+                        'unit_price', i.unit_price
+                    )
+                ) FILTER (WHERE i.item_id IS NOT NULL),
+                '[]'::json
+            ) AS items
+        FROM laundry_orders o
+        LEFT JOIN laundry_order_items i ON i.order_id = o.order_id
+        WHERE o.customer_id = $1
+          AND o.created_at >= $2
+          AND o.created_at < $3
+        GROUP BY o.order_id
+        ORDER BY o.created_at DESC
+    `, customerID, monthDate, monthDate.AddDate(0, 1, 0))
+
+		if err != nil {
+			log.Printf("Customer history query failed: %v", err)
+			writeJSON(w, http.StatusInternalServerError, map[string]string{
+				"error": "Could not retrieve customer history",
+			})
+			return
+		}
+		defer rows.Close()
+
+		type OrderHistory struct {
+			OrderID       int             `json:"order_id"`
+			CreatedAt     time.Time       `json:"created_at"`
+			PickupDate    *time.Time      `json:"pickup_date"`
+			Status        string          `json:"status"`
+			PaymentStatus string          `json:"payment_status"`
+			TotalAmount   float64         `json:"total_amount"`
+			Items         json.RawMessage `json:"items"`
+		}
+
+		history := []OrderHistory{}
+
+		for rows.Next() {
+			var order OrderHistory
+			if err := rows.Scan(
+				&order.OrderID,
+				&order.CreatedAt,
+				&order.PickupDate,
+				&order.Status,
+				&order.PaymentStatus,
+				&order.TotalAmount,
+				&order.Items,
+			); err != nil {
+				writeJSON(w, http.StatusInternalServerError, map[string]string{
+					"error": "Could not read customer history",
+				})
+				return
+			}
+			history = append(history, order)
+		}
+
+		if err := rows.Err(); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{
+				"error": "Could not read customer history",
+			})
+			return
+		}
+
+		writeJSON(w, http.StatusOK, map[string]any{
+			"customer_id": customerID,
+			"month":       monthDate.Format("2006-01"),
+			"orders":      history,
+		})
+	})
 
 	port := os.Getenv("PORT")
 	if port == "" {
